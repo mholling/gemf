@@ -36,6 +36,32 @@ module Gemf
       self.bounds <=> other.bounds
     end
 
+    def flatten(temp_dir)
+      tiles.group_by(&:indices).map do |indices, (*below, above)|
+        next above if below.none?
+        string, status = Open3.capture2e *%W[identify -format %A -], stdin_data: above.data, binmode: true
+        next above if status.success? && string[0].upcase == ?F
+        path = Pathname(temp_dir).join("tile.%i.%i.%i.png" % [hash, *indices])
+        paths = [*below, above].map.with_index do |tile, index|
+          tile_path = Pathname(temp_dir).join("tile.%i.%i.%i.%i.png" % [hash, *indices, index])
+          tile_path.binwrite tile.data
+          tile_path
+        end.inject do |args, tile_path|
+          [*args, tile_path, "-composite"]
+        end.push(path).map(&:to_s).tap do |args|
+          string, status = Open3.capture2e "convert", *args
+          raise "couldn't composite tiles" unless status.success?
+          string, status = Open3.capture2e *%W[pngquant --force --ext .png --speed 1 --nofs #{path}]
+          raise "couldn't optimise tiles" unless status.success?
+        rescue Errno::ENOENT => error
+          raise error.message
+        end
+        Tile.new indices: indices, path: path, offset: 0, length: path.size
+      end.yield_self do |tiles|
+        TileRange.new tiles: tiles, zoom: zoom, source: source
+      end
+    end
+
     def partition
       Enumerator.new do |yielder|
         remaining = tiles.sort_by(&:indices)

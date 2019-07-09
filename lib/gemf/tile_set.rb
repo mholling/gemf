@@ -26,29 +26,10 @@ module Gemf
     def flatten(temp_dir)
       ranges.group_by do |range|
         [range.zoom, range.source]
-      end.map.with_index do |((zoom, source), ranges), index|
-        tiles = ranges.map(&:tiles).inject(&:+).group_by(&:indices).map do |indices, (*below, above)|
-          next above if below.none?
-          string, status = Open3.capture2e *%W[identify -format %A -], stdin_data: above.data, binmode: true
-          next above if status.success? && string[0].upcase == ?F
-          path = Pathname(temp_dir).join("tile.%i.%i.%i.png" % [index, *indices])
-          paths = [*below, above].map.with_index do |tile, subindex|
-            tile_path = Pathname(temp_dir).join("tile.%i.%i.%i.%i.png" % [index, *indices, subindex])
-            tile_path.binwrite tile.data
-            tile_path
-          end.inject do |args, tile_path|
-            [*args, tile_path, "-composite"]
-          end.push(path).map(&:to_s).tap do |args|
-            string, status = Open3.capture2e "convert", *args
-            raise "couldn't composite tiles" unless status.success?
-            string, status = Open3.capture2e *%W[pngquant --force --ext .png --speed 1 --nofs #{path}]
-            raise "couldn't optimise tiles" unless status.success?
-          rescue Errno::ENOENT => error
-            raise error.message
-          end
-          Tile.new indices: indices, path: path, offset: 0, length: path.size
-        end
-        TileRange.new tiles: tiles, zoom: zoom, source: source
+      end.map do |(zoom, source), ranges|
+        TileRange.new tiles: ranges.flat_map(&:tiles), zoom: zoom, source: source
+      end.map do |range|
+        range.flatten(temp_dir)
       end.flat_map(&:partition).yield_self do |ranges|
         TileSet.new ranges
       end
