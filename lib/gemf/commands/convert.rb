@@ -11,7 +11,7 @@ EOF
   end
 end
 
-options = OpenStruct.new
+options = Hash[]
 begin
   parser.parse! into: options
 rescue OptionParser::ParseError
@@ -30,7 +30,7 @@ when extras.any?
 when !output || !input
   warn parser if $stderr.tty?
   raise "no %s file specified" % (input ? "output" : "input")
-when output.exist? && !options.overwrite
+when output.exist? && !options[:overwrite]
   raise "file already exists: #{output}"
 when !input.file?
   raise "not a file: %s" % input
@@ -39,5 +39,5 @@ when input.realpath == output.expand_path
 end
 
 Dir.mktmpdir do |temp_dir|
-  Gemf::Reader.read(input).extend(Gemf::Mbtiles::Writer).write(output, temp_dir, **options.to_h.slice(:name))
+  Gemf::Reader.read(input).extend(Gemf::Mbtiles::Writer).write(output, temp_dir, **options.slice(:name))
 end

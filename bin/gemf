@@ -17,7 +17,6 @@
 
 require 'optparse'
 require 'pathname'
-require 'ostruct'
 require_relative '../lib/gemf.rb'
 
 Thread::report_on_exception = false

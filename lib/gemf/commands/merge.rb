@@ -11,7 +11,7 @@ EOF
   end
 end
 
-options = OpenStruct.new
+options = Hash[]
 begin
   parser.parse! into: options
 rescue OptionParser::ParseError
@@ -27,7 +27,7 @@ case
 when !output || inputs.none?
   warn parser if $stderr.tty?
   raise "no input files specified" 
-when output.exist? && !options.overwrite
+when output.exist? && !options[:overwrite]
   raise "file already exists: #{output}"
 when !inputs.all?(&:file?)
   raise "not a file: %s" % inputs.reject(&:file?).first
@@ -39,6 +39,6 @@ Dir.mktmpdir do |temp_dir|
   inputs.map do |path|
     Gemf::Reader.read path
   end.inject(&:+).yield_self do |tile_set|
-    options.overlaps ? tile_set : tile_set.flatten(temp_dir)
+    options[:overlaps] ? tile_set : tile_set.flatten(temp_dir)
   end.extend(Gemf::Writer).write(output, temp_dir)
 end
