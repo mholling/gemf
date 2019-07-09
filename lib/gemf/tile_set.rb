@@ -93,5 +93,16 @@ module Gemf
       end
       lines.join(?\n)
     end
+
+    def delete(zoom: ranges.map(&:zoom), source: ranges.map(&:source))
+      ranges.reject do |range|
+        zoom.include?(range.zoom) &&
+        source.include?(range.source)
+      end.yield_self do |filtered|
+        raise "no tiles to be deleted" if ranges.length == filtered.length
+        raise "all tiles would be deleted" if filtered.none?
+        TileSet.new filtered
+      end
+    end
   end
 end

@@ -28,6 +28,7 @@ begin
       commands:
         merge         merge multiple GEMF map files
         convert       convert GEMF file to other formats
+        delete        delete tiles from a GEMF file
         info          show information for GEMF files
       command help: gemf <command> --help
   EOF
@@ -40,7 +41,7 @@ begin
   parser.order!
 
   case command = ARGV.shift
-  when "merge", "convert", "info"
+  when "merge", "convert", "delete", "info"
     require_relative "../lib/gemf/commands/#{command}.rb"
   else
     warn parser if $stderr.tty?
