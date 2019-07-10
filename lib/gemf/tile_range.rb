@@ -89,19 +89,21 @@ module Gemf
         [tile.x / 2, tile.y / 2]
       end.map do |indices, tiles|
         path = Pathname(temp_dir).join("composite.%i.png" % tiles.hash)
-        tiles.map do |tile|
+        args = tiles.inject(%w[-size 512x512 canvas:none]) do |args, tile|
           tile_path = Pathname(temp_dir).join("tile.%i.png" % tile.hash)
           tile_path.binwrite tile.data
           geometry = "256x256+%i+%i" % [tile.x % 2 * 256, tile.y % 2 * 256]
-          [tile_path, "-geometry", geometry, "-composite"]
-        end.inject(%w[-size 512x512 canvas:none], &:+).concat(%W[-filter Lanczos -resize 256x256 #{path}]).map(&:to_s).tap do |args|
-          string, status = Open3.capture2e "convert", *args
-          raise "couldn't composite tiles" unless status.success?
-          string, status = Open3.capture2e *%W[pngquant --force --ext .png --speed 1 --nofs #{path}]
-          raise "couldn't optimise tiles" unless status.success?
-        rescue Errno::ENOENT => error
-          raise error.message
-        end
+          args.push tile_path, "-geometry", geometry, "-composite"
+        end.concat(%W[-filter Lanczos -resize 256x256 #{path}]).map(&:to_s)
+        next indices, path, args
+      end.each.concurrently do |indices, path, args|
+        string, status = Open3.capture2e "convert", *args
+        raise "couldn't composite tiles" unless status.success?
+        string, status = Open3.capture2e *%W[pngquant --force --ext .png --speed 1 --nofs #{path}]
+        raise "couldn't optimise tiles" unless status.success?
+      rescue Errno::ENOENT => error
+        raise error.message
+      end.map do |indices, path, args|
         Tile.new indices: indices, path: path, offset: 0, length: path.size
       end.yield_self do |tiles|
         TileRange.new tiles: tiles, zoom: zoom - 1, source: source
