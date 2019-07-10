@@ -85,5 +85,27 @@ module Gemf
         TileSet.new filtered
       end
     end
+
+    def fill(temp_dir, source: ranges.map(&:source))
+      modify = source
+      ranges.group_by(&:source).flat_map do |source, ranges|
+        next ranges unless modify.include? source
+        ranges.group_by(&:zoom).map do |zoom, ranges|
+          TileRange.new tiles: ranges.flat_map(&:tiles), zoom: zoom, source: source
+        end.sort_by(&:zoom).chunk_while do |range1, range2|
+          range1.zoom + 1 == range2.zoom
+        end.inject([]) do |memo, ranges|
+          memo << [memo.any? ? memo.last.last.last.zoom + 1 : 0, ranges]
+        end.flat_map do |min_zoom, ranges|
+          (min_zoom...ranges[0].zoom).reverse_each.inject(ranges) do |ranges, zoom|
+            break ranges if ranges[0].tiles.one?
+            ranges.unshift ranges[0].summarise(temp_dir)
+          end
+        end.flat_map(&:partition)
+      end.yield_self do |filled|
+        raise "no tiles to be added" if filled.length == ranges.length
+        TileSet.new filled
+      end
+    end
   end
 end
