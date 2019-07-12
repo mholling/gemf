@@ -37,10 +37,8 @@ module Gemf
     end
 
     def flatten(temp_dir)
-      singles, merges = tiles.group_by(&:indices).partition do |indices, (*below, above)|
-        next true if below.none?
-        string, status = Open3.capture2e *%W[identify -format %A -], stdin_data: above.data, binmode: true
-        next status.success? && string[0].upcase == ?F
+      singles, merges = tiles.group_by(&:indices).partition do |indices, tiles|
+        tiles.one?
       end
       merges.map do |indices, tiles|
         path = Pathname(temp_dir).join("tile.%i.%i.%i.png" % [hash, *indices])
