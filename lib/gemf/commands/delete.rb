@@ -1,12 +1,3 @@
-digits = '\d+(?:_\d+)*'
-Zoom = /\A(?:#{digits},)*#{digits}\z/
-
-OptionParser.accept Zoom, Zoom do |string|
-  values = string.split(?,).map(&:to_i)
-  raise OptionParser::InvalidArgument, string if values.any?(&:negative?)
-  values
-end
-
 parser = OptionParser.new(<<~EOF) do |parser|
   gemf delete - delete tile ranges from GEMF file
     usage: gemf delete [options] <map.gemf>
@@ -41,6 +32,6 @@ else
 end
 
 Dir.mktmpdir do |temp_dir|
-  Gemf::Reader.read(path).delete(**options).tap(&method(:puts)).extend(Gemf::Writer).write(path, temp_dir)
+  Gemf::Reader.read(path).reject(**options).tap(&method(:puts)).extend(Gemf::Writer).write(path, temp_dir)
 end
 

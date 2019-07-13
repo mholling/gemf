@@ -3,9 +3,11 @@ parser = OptionParser.new(<<~EOF) do |parser|
     usage: gemf merge [options] <input.gemf> [<input.gemf> ...] <output.gemf>
 EOF
   parser.separator "  options:"
-  parser.on "-o", "--overwrite", "overwrite existing output file"
-  parser.on "-v", "--overlaps",  "don't flatten overlapping tiles"
-  parser.on "-h", "--help",      "show this help" do
+  parser.on "-o", "--overwrite",                        "overwrite existing output file"
+  parser.on "-v", "--overlaps",                         "don't flatten overlapping tiles"
+  parser.on "-z", "--zoom       <zoom[,...]>",   Zoom,  "specified zoom levels only"
+  parser.on "-s", "--source     <source[,...]>", Array, "specified tile sources only"
+  parser.on "-h", "--help",                             "show this help" do
     puts parser
     exit
   end
@@ -37,7 +39,7 @@ end
 
 Dir.mktmpdir do |temp_dir|
   inputs.map do |path|
-    Gemf::Reader.read path
+    Gemf::Reader.read(path).select(**options.slice(:zoom, :source))
   end.inject(&:+).yield_self do |tile_set|
     options[:overlaps] ? tile_set : tile_set.flatten(temp_dir)
   end.extend(Gemf::Writer).write(output, temp_dir)
