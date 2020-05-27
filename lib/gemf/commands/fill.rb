@@ -1,5 +1,5 @@
 parser = OptionParser.new(<<~EOF) do |parser|
-  gemf delete - add tiles for missing zoom levels
+  gemf fill - add tiles for missing zoom levels
     usage: gemf delete [options] <map.gemf>
 EOF
   parser.separator "  options:"
